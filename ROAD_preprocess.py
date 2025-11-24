@@ -77,7 +77,7 @@ MIN_FRAMES = 50
 SAVE_DIR = "preprocessed_npz"
 RND = 42
 
-def read_metadata_df(base_path: str):
+def read_metadata(base_path: str):
     base = Path(base_path)
     ambient_path = base / "signal_extractions" / "ambient" / "metadata.json"
     attacks_path = base / "signal_extractions" / "attacks" / "metadata.json"
@@ -126,16 +126,34 @@ def read_metadata_df(base_path: str):
     ]
     return df
 
-def read_csv_files():
-    df = pd.read_csv("road/signal_extractions/ambient/ambient_dyno_drive_basic_long.csv")
-    pdb.set_trace()
-    print(df.head())
+
+def load_all_csvs_with_metadata(base_path="road"):
+    """Load every CSV under ambient + attacks and merge with metadata."""
+    base = Path(base_path)
+    meta = read_metadata(base_path)
+    rows = []
+    ambient_dir = base / "signal_extractions" / "ambient"
+    attack_dir = base / "signal_extractions" / "attacks"
+    all_csvs = list(ambient_dir.glob("*.csv")) + list(attack_dir.glob("*.csv"))
+    for csv_path in all_csvs:
+        name = csv_path.stem  # filename without .csv
+        if name not in meta:
+            print(f"[WARN] No metadata for {name}, skipping.")
+            continue
+        df = pd.read_csv(csv_path, low_memory=False)
+        df["trace_name"] = name
+        for k, v in meta[name].items():
+            df[k] = v
+        rows.append(df)
+    if rows:
+        return pd.concat(rows, ignore_index=True)
+    return pd.DataFrame()  # empty fallback
 
 def main():
-    read_csv_files()
-    df = read_metadata_df("road")
-    print(df.head())
-    print("\nTotal rows:", len(df))
+    big_df = load_all_csvs_with_metadata("road")
+    print(big_df.head())
+    print(big_df.shape)
+    print("\nColumns:", list(big_df.columns))
 
 if __name__ == "__main__":
     main()
