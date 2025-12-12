@@ -1,7 +1,6 @@
 import matplotlib.pyplot as plt
 import tensorflow as tf
 from tensorflow import keras
-from tensorflow.keras import layers
 
 # Custom F1 metric
 class F1Score(keras.metrics.Metric):
