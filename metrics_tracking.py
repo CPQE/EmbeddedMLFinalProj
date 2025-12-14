@@ -3,6 +3,7 @@ import tensorflow as tf
 from tensorflow import keras
 
 # Custom F1 metric
+@tf.keras.utils.register_keras_serializable(package="metrics_tracking")
 class F1Score(keras.metrics.Metric):
     def __init__(self, name="f1_score", **kwargs):
         super().__init__(name=name, **kwargs)
