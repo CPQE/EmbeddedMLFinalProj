@@ -1,4 +1,6 @@
 import matplotlib.pyplot as plt
+from sklearn.metrics import classification_report, roc_auc_score
+
 import tensorflow as tf
 from tensorflow import keras
 
@@ -23,16 +25,7 @@ class F1Score(keras.metrics.Metric):
         self.precision.reset_state()
         self.recall.reset_state()
         
-def plot_metrics(history):
-    # Plot Accuracy
-    plt.plot(history.history['accuracy'], label='train acc')
-    plt.plot(history.history['val_accuracy'], label='val acc')
-    plt.title('Model Accuracy')
-    plt.xlabel('Epoch')
-    plt.ylabel('Accuracy')
-    plt.legend()
-    plt.show()
-
+def plot_metrics(history, model_name="best_model_road_128_f1Fixed.keras", save_plots=False):
     # Plot AUC
     plt.plot(history.history['auc'], label='train AUC')
     plt.plot(history.history['val_auc'], label='val AUC')
@@ -41,7 +34,8 @@ def plot_metrics(history):
     plt.ylabel('AUC')
     plt.legend()
     plt.show()
-
+    if save_plots:
+        plt.savefig(f"plots/{model_name}_auc.png")
     # Plot F1
     plt.plot(history.history['f1'], label='train F1')
     plt.plot(history.history['val_f1'], label='val F1')
@@ -49,4 +43,39 @@ def plot_metrics(history):
     plt.xlabel('Epoch')
     plt.ylabel('F1')
     plt.legend()
-plt.show()
+    plt.show()
+    if save_plots:
+        plt.savefig(f"plots/{model_name}_f1.png")
+
+    # Plot precision
+    plt.plot(history.history['precision'], label='train Prec')
+    plt.plot(history.history['val_precision'], label='val Prec')
+    plt.title('Model Precision Score')
+    plt.xlabel('Epoch')
+    plt.ylabel('Prec')
+    plt.legend()
+    plt.show()
+    if save_plots:
+        plt.savefig(f"plots/{model_name}_precision.png")
+
+    # Plot recall
+    plt.plot(history.history['recall'], label='train recall')
+    plt.plot(history.history['val_recall'], label='val recall')
+    plt.title('Model Recall Score')
+    plt.xlabel('Epoch')
+    plt.ylabel('Recall')
+    plt.legend()
+    plt.show()
+    if save_plots:
+        plt.savefig(f"plots/{model_name}_Recall.png")
+
+    # Plot Accuracy
+    plt.plot(history.history['accuracy'], label='train acc')
+    plt.plot(history.history['val_accuracy'], label='val acc')
+    plt.title('Model Accuracy')
+    plt.xlabel('Epoch')
+    plt.ylabel('Accuracy')
+    plt.legend()
+    plt.show()
+    if save_plots:
+        plt.savefig(f"plots/{model_name}_accuracy.png")
