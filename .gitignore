@@ -1,2 +1,17 @@
 archive/*
 road/*
+LICENSE*
+**/settings/*
+**/Debug/*
+**/Release/*
+*.ioc
+*.cproject
+*.project
+*.launch
+*.mxproject
+*.dep
+*.elf
+*.bin
+*.hex
+*.map
+**/build/*
