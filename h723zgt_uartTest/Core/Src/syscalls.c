@@ -1,6 +1,10 @@
 #include <sys/stat.h>
 #include <errno.h>
+#include <stdint.h>
 #include "stm32h7xx_hal.h"
+//this file has to be imported into the project after generation in order ot prevent garbage warnings from filling up the command prompt
+//also Project → Properties → C/C++ Build → Settings → MCU GCC Linker → Miscellaneous remove --specs=nosys.specs
+//in main.c after HAL_init(): setvbuf(stdout, NULL, _IONBF, 0);, will fix printf() to use uart
 
 int _close(int file)
 {
@@ -29,10 +33,21 @@ int _read(int file, char *ptr, int len)
 }
 
 /* Redirect printf() to UART2 if you want later */
-extern UART_HandleTypeDef huart2;
+extern UART_HandleTypeDef huart3;
 
 int _write(int file, char *ptr, int len)
 {
-    HAL_UART_Transmit(&huart2, (uint8_t*)ptr, len, HAL_MAX_DELAY);
+    HAL_UART_Transmit(&huart3, (uint8_t*)ptr, len, HAL_MAX_DELAY);
     return len;
+}
+
+int _getpid(void)
+{
+    return 1;
+}
+
+int _kill(int pid, int sig)
+{
+    errno = EINVAL;
+    return -1;
 }

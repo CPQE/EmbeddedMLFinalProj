@@ -58,7 +58,9 @@
 #include "road_cnn_data.h"
 
 /* USER CODE BEGIN includes */
-#include "samples_int16.h"
+//#include "samples_fp16.h"
+#include "samples_fp32.h"
+#include "i2c_lcd.h"
 /* USER CODE END includes */
 
 /* IO buffers ----------------------------------------------------------------*/
@@ -170,35 +172,54 @@ static int ai_run(void)
 }
 
 /* USER CODE BEGIN 2 */
-
-int acquire_and_process_data(ai_i8* data[])
+extern UART_HandleTypeDef huart3;
+extern I2C_HandleTypeDef hi2c1;
+static int last_class = -1;
+static float fp16_to_float(uint16_t h)
 {
-    const int16_t* sample_ptr = &samples_X[0][0][0];
-    for (int t = 0; t < SAMPLE_TIME; t++) {
-        for (int f = 0; f < SAMPLE_FEATS; f++) {
-            ((float*)data[0])[t * SAMPLE_FEATS + f] = (float)sample_ptr[t * SAMPLE_FEATS + f] / SAMPLE_SCALE;
-        }
-    }
+    // use manual bit conversion (CMSIS or approximate)
+    union { uint16_t u; float f; } conv;
+    memcpy(&conv.u, &h, sizeof(uint16_t));
+    return conv.f; // compiler may warn if strict FP16 not enabled
+}
+
+int acquire_and_process_data(ai_i8* data[], int sample_idx)
+{
+	float* input = (float*)data[0];  // point to Cube-AI input buffer
+	for (int t = 0; t < SAMPLE_TIME; t++) {
+		for (int f = 0; f < SAMPLE_FEATS; f++) {
+			int idx_flat = t * SAMPLE_FEATS + f;
+			input[idx_flat] = (samples_X[sample_idx][t][f] - scaler_mean[f]) / scaler_std[f];
+		}
+	}
 	return 0;
 }
 
-extern UART_HandleTypeDef huart3;
-
 int post_process(ai_i8* data[])
 {
-    float* preds = (float*)data[0];
-    int max_idx = 0;
-    float max_val = preds[0];
-    for (int i = 1; i < AI_ROAD_CNN_OUT_NUM; i++) {
-        if (preds[i] > max_val) {
-            max_val = preds[i];
-            max_idx = i;
-        }
+    float prob = ((float*)data[0])[0];
+    int predicted_class = (prob > 1e-20f) ? 1 : 0;
+    char buf[96];
+    int len;
+    if (predicted_class == 1){
+    	len = snprintf(buf, sizeof(buf), "ATTACK! Prob: %.9e\r\n", prob);
     }
-    char buf[64];
-    int len = snprintf(buf, sizeof(buf), "Predicted class: %d, confidence: %f\r\n", max_idx, max_val);
+    else{
+    	len = snprintf(buf, sizeof(buf), "Normal\ Prob: %.9e\r\n", prob);
+    }
     HAL_UART_Transmit(&huart3, (uint8_t*)buf, len, HAL_MAX_DELAY);
+
+    if (predicted_class != last_class) {
+    	HAL_Delay(500);
+        last_class = predicted_class;
+        lcd_clear();
+        lcd_put_cursor(0, 0);
+        lcd_send_string(predicted_class ? "ATTACK!" : "Normal");
+    }
+
+
     return 0;
+
 }
 
 /* USER CODE END 2 */
@@ -217,28 +238,34 @@ void MX_X_CUBE_AI_Init(void)
 void MX_X_CUBE_AI_Process(void)
 {
     /* USER CODE BEGIN 6 */
-  int res = -1;
+    int res = 0;
+    int sample_idx = 0;
+    char buf[64];
+//    HAL_UART_Transmit(&huart3, (uint8_t*)"TEMPLATE - run - main loop\r\n", 28, HAL_MAX_DELAY);
+    if (road_cnn) {
+        for (sample_idx = 0; sample_idx < SAMPLE_COUNT; sample_idx++) {
+            /* 1 - acquire and pre-process input data for this sample */
+            res = acquire_and_process_data(data_ins, sample_idx);
+            if (res != 0) break;
+            /* 2 - process the data - call inference engine */
+            res = ai_run();
+            //debugging
+//            float *out = (float*)data_outs[0];
+//            for (int i = 0; i < AI_ROAD_CNN_OUT_1_SIZE; i++) {
+//            	printf("raw_out[0] = %.9e\r\n", out[0]);
+//            }
+             //debugging end
+            if (res != 0) break;
+            res = post_process(data_outs); /* post-process the predictions */
+            if (res != 0) break;
+        }
+    }
 
-  printf("TEMPLATE - run - main loop\r\n");
-
-  if (road_cnn) {
-
-    do {
-      /* 1 - acquire and pre-process input data */
-      res = acquire_and_process_data(data_ins);
-      /* 2 - process the data - call inference engine */
-      if (res == 0)
-        res = ai_run();
-      /* 3- post-process the predictions */
-      if (res == 0)
-        res = post_process(data_outs);
-    } while (res==0);
-  }
-
-  if (res) {
-    ai_error err = {AI_ERROR_INVALID_STATE, AI_ERROR_CODE_NETWORK};
-    ai_log_err(err, "Process has FAILED");
-  }
+    if (res != 0) {
+        ai_error err = {AI_ERROR_INVALID_STATE, AI_ERROR_CODE_NETWORK};
+        ai_log_err(err, "Process has FAILED");
+        HAL_UART_Transmit(&huart3, (uint8_t*)"Process has FAILED\r\n", 21, HAL_MAX_DELAY);
+    }
     /* USER CODE END 6 */
 }
 #ifdef __cplusplus
