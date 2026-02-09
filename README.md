@@ -5,3 +5,4 @@ The primary challenge I faced was managing systems integrations between my hardw
 The challenge of swinging between high-performance and poor programmability to high programmability and low performance augmented the challenge of improving the 
 Python data pipeline and TensorFlow Machine learning workflows for my model. There are cleaning_ scripts and model_training_ scripts for the machine learning models, and .c files taken from STM32 Cube IDE which 
 are a mix of what I've wrote and what CubeMX generated when I built my project with the X-Cube-AI extension enabled. 
+Video demonstration: <iframe src="https://www.linkedin.com/embed/feed/update/urn:li:ugcPost:7418911863717150720?compact=1" height="399" width="504" frameborder="0" allowfullscreen="" title="Embedded post"></iframe>
