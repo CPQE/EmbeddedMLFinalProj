@@ -192,6 +192,21 @@ int acquire_and_process_data(ai_i8* data[], int sample_idx)
 			input[idx_flat] = (samples_X[sample_idx][t][f] - scaler_mean[f]) / scaler_std[f];
 		}
 	}
+
+	  for (int t = 0; t < 2 && t < SAMPLE_TIME; t++) {
+	        HAL_UART_Transmit(&huart3, (uint8_t*)"Sample: [", 9, HAL_MAX_DELAY);
+	        for (int f = 0; f < SAMPLE_FEATS; f++) {
+	            char buf[16];
+	            int len = snprintf(buf, sizeof(buf), "%f", input[t * SAMPLE_FEATS + f]);
+	            HAL_UART_Transmit(&huart3, (uint8_t*)buf, len, HAL_MAX_DELAY);
+
+	            if (f < SAMPLE_FEATS - 1) {
+	                HAL_UART_Transmit(&huart3, (uint8_t*)", ", 2, HAL_MAX_DELAY);
+	            }
+	        }
+	        HAL_UART_Transmit(&huart3, (uint8_t*)"]\r\n", 3, HAL_MAX_DELAY);
+	    }
+
 	return 0;
 }
 
@@ -201,13 +216,13 @@ int post_process(ai_i8* data[])
     int predicted_class = (prob > 1e-20f) ? 1 : 0;
     char buf[96];
     int len;
-    if (predicted_class == 1){
-    	len = snprintf(buf, sizeof(buf), "ATTACK! Prob: %.9e\r\n", prob);
-    }
-    else{
-    	len = snprintf(buf, sizeof(buf), "Normal\ Prob: %.9e\r\n", prob);
-    }
-    HAL_UART_Transmit(&huart3, (uint8_t*)buf, len, HAL_MAX_DELAY);
+//    if (predicted_class == 1){
+//    	len = snprintf(buf, sizeof(buf), "ATTACK! Prob: %.9e\r\n", prob);
+//    }
+//    else{
+//    	len = snprintf(buf, sizeof(buf), "Normal\ Prob: %.9e\r\n", prob);
+//    }
+//    HAL_UART_Transmit(&huart3, (uint8_t*)buf, len, HAL_MAX_DELAY);
 
     if (predicted_class != last_class) {
     	HAL_Delay(500);
