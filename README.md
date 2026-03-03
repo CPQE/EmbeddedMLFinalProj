@@ -24,19 +24,19 @@ PROJECT FLOW:
 11. In *STM32CubeIDE*, *samples_fp32.h/.c* need to be imported in main.c, and in *X-CUBE-AI/App/app_x-cube-ai.c* the ai_run(), acquire_and_process_data(), and post_process() files need to be defined. ai_run() is the overall loop, acquire_and_process_data() reverses fp16 compression for input data and standardizes the model, and post_process() interprets the model prediction probabilities, outputting the predictions to the I2C LCD output. 
 12. After compilation, sometimes STM32CubeIDE was finicky with running its executable, so I'd sometimes have to manually load the .elf file into the chip using *STM32CubeProgrammer*(https://www.st.com/en/development-tools/stm32cubeprog.html)
 
-CHALLENGES:
-
-Understanding the X-CUBE-AI build process and generated code (ai_run, acquire_and_process_data, post_process)
-Understanding and locating datasheets for every Microcontroller chipset and evaluation board I used.
-Figuring out the entire STM32CubeIDE ecosystem and struggling to make builds and flash code to the board across a diverse ecosystem,
+# CHALLENGES:
+## General
+* Understanding the X-CUBE-AI build process and generated code (ai_run, acquire_and_process_data, post_process)
+* Understanding and locating datasheets for every Microcontroller chipset and evaluation board I used.
+* Figuring out the entire STM32CubeIDE ecosystem and struggling to make builds and flash code to the board across a diverse ecosystem,
 this involved testing out CLI tools like Make, OpenOCD, st-link, and arm-none-eabi-gcc. 
 
-Finding the right platform:  
-STM32H747 DISCO -> dual-core cortex-M7/M4 MCU, 2 MB Flash and 1 MB RAM, basically impossible to program
-STM32F411re -> single-core cortex-M4, 512 KB Flash, 128 KB SRAM, too weak to hold program but easy to program
-STM32H723zg -> single-core cortex-M7, 1 MB Flash, 564 KB RAM, easy to program, higher  memory than f411re. 
+## Finding the right platform:  
+* STM32H747 DISCO -> dual-core cortex-M7/M4 MCU, 2 MB Flash and 1 MB RAM, basically impossible to program
+* STM32F411re -> single-core cortex-M4, 512 KB Flash, 128 KB SRAM, too weak to hold program but easy to program
+* STM32H723zg -> single-core cortex-M7, 1 MB Flash, 564 KB RAM, easy to program, higher  memory than f411re. 
 
-Managing a software-hardware pipeline with multiple points of failure.
+## Managing a software-hardware pipeline with multiple points of failure.
 
 Large window (600 frames) 
     -> good accuracy 
@@ -73,12 +73,13 @@ Quantization
 * Model was trained and tested on the same vehicle. Cross-vehicle generalization is an open and publishable question.
 
 
-SOURCES:
-
-Verma et al., “A comprehensive guide to CAN IDS data and introduction of the ROAD dataset”
-“LATTE: LSTM Self-Attention based Anomaly Detection in Embedded Automotive Platforms” by Kukkala, Thiruloga, and Pasricha
-https://www.digikey.com/en/maker/projects/tinyml-getting-started-with-stm32-x-cube-ai/f94e1c8bfc1e4b6291d0f672d780d2c0
-STMicroelectronics ST Edge AI Developer Cloud (https://stedgeai-dc.st.com/home?ecmp=tt39873_gl_video_jul2024)
-
-
+# SOURCES (not exhaustive):
+* Verma et al., "A comprehensive guide to CAN IDS data and introduction of the ROAD dataset"
+* Kukkala, Thiruloga, and Pasricha, "LATTE: LSTM Self-Attention based Anomaly Detection in Embedded Automotive Platforms"
+* DigiKey, "TinyML: Getting Started with STM32 X-CUBE-AI" — https://www.digikey.com/en/maker/projects/tinyml-getting-started-with-stm32-x-cube-ai/f94e1c8bfc1e4b6291d0f672d780d2c0
+* STMicroelectronics, ST Edge AI Developer Cloud — https://stedgeai-dc.st.com/home?ecmp=tt39873_gl_video_jul2024
+* STMicroelectronics, STM32H723ZG Datasheet (DS13313) — https://www.st.com/resource/en/datasheet/stm32h723zg.pdf
+* STMicroelectronics, STM32H723/733 Reference Manual (RM0468) — https://www.st.com/resource/en/reference_manual/dm00603761.pdf
+* Arm, Cortex-M7 Processor Technical Reference Manual (DDI0489) — https://developer.arm.com/documentation/ddi0489/latest
+* Arm, Cortex-M7 Generic User Guide (DUI0646, covers DWT cycle counter) — https://documentation-service.arm.com/static/61efd6602dd99944d051417b
 
