@@ -1,7 +1,7 @@
+
+# OVERVIEW:
  This project is centered around building an Intrusion Detection System to detect network attacks on a Controller Area Network (CAN) bus. 
  I sought to build a supervised binary classification convolutional neural network (CNN) small and accurate enough to fit on a high performance MCU (STM32H723ZG).
-
-OVERVIEW:
 
 The primary challenge I faced was managing systems integrations between my hardware, embedded software environment, and machine learning software stack. 
 The challenge of swinging between high-performance and poor programmability to high programmability and low performance microcontrollers augmented the challenge of improving the Python data pipeline and TensorFlow Machine learning workflows for my model. I attempted to clean and train my 1D CNN on the ROAD, OTIDS, and SynCAN datasets. The ROAD dataset proved to be the best (most labeled data with indicated attack intervals) among these three, so it has more code for it related to preprocessing, training, testing, compressing, and deploying its model. There are cleaning_ scripts and model_training_ scripts for the machine learning models, and .c files taken from STM32 Cube IDE which are a mix of what I've wrote and what CubeMX generated when I built my project with the X-Cube-AI extension enabled. 
@@ -9,20 +9,39 @@ The challenge of swinging between high-performance and poor programmability to h
 Video demonstration:
 https://www.linkedin.com/posts/cyrus-p-057b6597_stm32-xcubeai-embeddedml-activity-7418911896982065153-KOPl?utm_source=share&utm_medium=member_desktop&rcm=ACoAABSjfAMBCD2FFO_jDz0WmHA_0T9tRgl2Evs
 
-PROJECT FLOW: 
-1. In the *cleaning_ROAD.ipynb* file, it loads ROAD dataset data (only extracted signal columns) and combines attack/ambient samples
-2. read csv into data frame, fixes and sorts timestamps, and forward fills signal columns, replacing NaNs with 0. 
-3. makes uniform sampling rate of 200hz and creates attack intervals using Label column and attack injection interval metadata
-4. creates 3s overlapping sliding windows with stride 0.5 seconds
-5. perform train/test stratified split (avoid oversampling ambient data)
-6. In *model_training_ROAD.ipynb*, preprocesses the dataset with standard mean/std deviation scaling, creates categorical output labels, and defines the simple 1DCNN model(Input layer, 1D Convolutional layer, 1D GlobalAveragePooling, output layer)
-7. Model is fit on training data with callbacks defined, evaluated on Validation AUC. 
-8. Using TFLite, model is optimized for size (int8 quantization fails; classification accuracy dies) and saved as .tflite file. 
-9. In *ROAD_Model_Compression.ipynb*, a function is run that generates samples_fp32.h/c that containing a couple samples and their mean/std deviation to demonstrate on-chip inference
-9. Now, *STM32CubeMX* is used (must be downloaded from ST's site) to configure and enable peripherals (UART, I2C, timers), upload model file after enabling the X-CUBE-AI extension (with Application Template option selected), clock frequency, and build system.
-10. Then, I generate the C code template and it's made available in .cproject file to be opened in *STM32CubeIDE*
-11. In *STM32CubeIDE*, *samples_fp32.h/.c* need to be imported in main.c, and in *X-CUBE-AI/App/app_x-cube-ai.c* the ai_run(), acquire_and_process_data(), and post_process() files need to be defined. ai_run() is the overall loop, acquire_and_process_data() reverses fp16 compression for input data and standardizes the model, and post_process() interprets the model prediction probabilities, outputting the predictions to the I2C LCD output. 
-12. After compilation, sometimes STM32CubeIDE was finicky with running its executable, so I'd sometimes have to manually load the .elf file into the chip using *STM32CubeProgrammer*(https://www.st.com/en/development-tools/stm32cubeprog.html)
+# PROJECT FLOW
+
+* **Data Cleaning** (`cleaning_ROAD.ipynb`)
+  * Load ROAD dataset extracted signal CSVs, combining attack and ambient samples
+  * Read each CSV into a dataframe, fix and sort timestamps, forward-fill signal columns, replace remaining NaNs with 0
+  * Resample to uniform 200Hz and construct attack interval labels using the Label column and injection interval metadata
+  * Create 3-second overlapping sliding windows with 0.5-second stride
+  * Perform stratified train/test split at the session (file) level to avoid ambient data dominance
+
+* **Model Training** (`model_training_ROAD.ipynb`)
+  * Preprocess dataset with standard mean/std scaling, create categorical output labels
+  * Define 1D-CNN architecture: Input → Conv1D(32, 4, ReLU) → GlobalAveragePooling1D → Dense(2, softmax)
+  * Fit model on training data with callbacks monitored on validation AUC
+  * Attempt INT8 quantization via TFLite — classification accuracy collapses; FP32 TFLite saved instead
+
+* **Sample Generation** (`ROAD_Model_Compression.ipynb`)
+  * Generate `samples_fp32.h/.c` containing a small number of test samples alongside their per-feature mean and std deviation for use in on-chip inference demonstration
+
+* **MCU Configuration** (STM32CubeMX)
+  * Configure and enable peripherals: UART, I2C, timers
+  * Upload `.tflite` model file via the X-CUBE-AI extension (Application Template option)
+  * Set clock frequency (480MHz) and build system, then generate C code template as `.cproject`
+
+* **Firmware Development** (STM32CubeIDE)
+  * Import `samples_fp32.h/.c` into `main.c`
+  * In `X-CUBE-AI/App/app_x-cube-ai.c`, define three functions:
+    * `ai_run()` — overall inference loop
+    * `acquire_and_process_data()` — reverses FP16 compression and applies mean/std standardization to input data
+    * `post_process()` — interprets output probabilities and writes prediction result to I2C LCD display
+
+* **Flashing** (STM32CubeProgrammer)
+  * STM32CubeIDE was occasionally unreliable running its built executable directly
+  * Workaround: manually load the compiled `.elf` file onto the chip via STM32CubeProgrammer — https://www.st.com/en/development-tools/stm32cubeprog.html
 
 # CHALLENGES:
 ## General
@@ -36,42 +55,36 @@ this involved testing out CLI tools like Make, OpenOCD, st-link, and arm-none-ea
 * STM32F411re -> single-core cortex-M4, 512 KB Flash, 128 KB SRAM, too weak to hold program but easy to program
 * STM32H723zg -> single-core cortex-M7, 1 MB Flash, 564 KB RAM, easy to program, higher  memory than f411re. 
 
-## Managing a software-hardware pipeline with multiple points of failure.
+## Managing a software-hardware pipeline with multiple points of failure
 
-Large window (600 frames) 
-    -> good accuracy 
-    -> too big for MCU (windows are too large to fit more than 2 samples)
-
-Small window 
-    -> fits on MCU 
-    -> accuracy drops down to 0/AUC becomes 0.5 (random guessing)
-
-Quantization 
-    -> would save memory 
-    -> destroys accuracy on the small model
+* Large window (600 frames)
+  * High AUC
+  * Too large for MCU — only 2 samples fit in memory at once
+* Small window
+  * Fits on MCU
+  * Accuracy collapses — AUC drops to ~0.5 (random guessing)
+* Quantization
+  * Would save memory
+  * Destroys accuracy on a model this small due to high proportional quantization error
 
 # NEXT STEPS / FURTHER RESEARCH
 
 ## Hardware & Deployment
 * The STM32H723ZG tensor arena likely only used AXI SRAM (320KB), leaving SRAM1/2, SRAM3, and DTCM (~256KB total) unused. A custom linker script assembling a larger contiguous arena across banks could allow more samples in memory.
 * Could use stronger or more flexible chips that support FP16 quantization, such as the TI Sitara AM62A or NXP i.MX RT1062/i.MX RT1176.
-* Inference latency was never formally benchmarked. Using the DWT cycle counter or a hardware timer (TIM2/TIM5) to measure mean and worst-case latency on the H7 would strengthen any deployment claims.
+* Measure mean and worst-case inference latency, as well as power consumption on the H7
 
 ## Model & Training
-* Fix callback monitoring — `val_auc` was never registered in `model.compile(metrics=[...])`, so `ModelCheckpoint`, `EarlyStopping`, and `ReduceLROnPlateau` all silently failed. The saved checkpoint is not guaranteed to be the best model.
-* Fix AUC reporting — `print_report_and_score` calls `.ravel()` on a 2-output softmax, producing shape `(2N,)`. The reported 0.94 AUC is unreliable. Should use `model.predict(X_test)[:, 1]` and integer true labels.
-* `class_weight` was silently ignored because Keras requires integer `y`, not one-hot encoded `y`. Now fixed in the updated data pipeline.
-* Quantization-aware training (QAT) was never attempted — only post-training quantization (PTQ), which is known to degrade small models with few parameters. QAT simulates quantization during training and would likely recover lost accuracy.
+* Fix class weights
+* Quantization-aware training (QAT)
 * Could continue trying to shorten window sizes and stride to fit more data into memory and increase model complexity.
-* A small ablation over filter count and kernel size would strengthen evaluation — only one architecture was tested.
-* Report per-class precision, recall, and F1 on the attack class specifically. Accuracy and AUC alone are insufficient for imbalanced binary classification.
+* Small adjustments to filter count and kernel size 
+* Report per-class precision, recall, and F1 on the attack class specifically. 
 
 ## Data & Generalization
-* Window-level class imbalance was never verified — file-level splitting appeared balanced but injection windows are a small fraction of total capture duration, likely producing a 90:10 or worse window-level ratio.
-* The `Time` column was inadvertently included as a feature in `create_windows` via `.drop(columns=["Label"])`. Time is a leaky and non-generalizing feature. Fixed in the updated cleaning script.
+* Verify window-level class imbalance 
 * The ROAD dataset is dyno-only. Generalization to on-road traffic is unvalidated. Could also train on newer datasets like can-train-and-test (https://doi.org/10.1016/j.cose.2024.103777) or CAN-MIRGU, which include moving-vehicle captures.
-* Model was trained and tested on the same vehicle. Cross-vehicle generalization is an open and publishable question.
-
+* Cross-vehicle generalization
 
 # SOURCES (not exhaustive):
 * Verma et al., "A comprehensive guide to CAN IDS data and introduction of the ROAD dataset"
