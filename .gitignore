@@ -15,3 +15,4 @@ LICENSE*
 *.hex
 *.map
 **/build/*
+SynCAN-DATA/**
