@@ -9,6 +9,22 @@ The challenge of swinging between high-performance and poor programmability to h
 Video demonstration:
 https://www.linkedin.com/posts/cyrus-p-057b6597_stm32-xcubeai-embeddedml-activity-7418911896982065153-KOPl?utm_source=share&utm_medium=member_desktop&rcm=ACoAABSjfAMBCD2FFO_jDz0WmHA_0T9tRgl2Evs
 
+## CAN Bus Attack Types
+
+* **Fuzzing** — randomly generated frames with arbitrary IDs and payloads injected onto the bus. Easy to detect due to statistical inconsistency with normal signal distributions.
+
+* **DoS (Denial of Service)** — high-priority (low arbitration ID) frames monopolize bus access, starving legitimate ECUs of bandwidth.
+
+* **Fabrication** — frames with valid IDs but impossible or out-of-range payload values, e.g. forcing speedometer to maximum.
+
+* **Flooding** — bus overwhelmed with high message volume to degrade normal communication. Similar to DoS but priority-agnostic.
+
+* **Replay** — previously recorded legitimate frames re-injected later. Individual frames look real but are temporally inconsistent with current vehicle state.
+
+* **Suspension** — legitimate ECU messages are suppressed. The attack signature is the *absence* of expected periodic messages rather than presence of malicious ones.
+
+* **Masquerade** — hardest attack type. A legitimate ECU is silenced via suspension and replaced by attacker-injected frames with the same ID, correct timing, and plausible data values. Largely indistinguishable from normal traffic without signal-level analysis.
+
 # PROJECT FLOW
 
 * **Data Cleaning** (`cleaning_ROAD.ipynb`)
