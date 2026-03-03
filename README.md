@@ -50,12 +50,28 @@ Quantization
     -> would save memory 
     -> destroys accuracy on the small model
 
-NEXT STEPS/FURTHER RESEARCH:
+# NEXT STEPS / FURTHER RESEARCH
 
-Could use stronger chips or more flexible ones that support FP16 quantization from another manufacturer like the TI Sitara AM62A
-or NXP's i.MX RT1062/i.MX RT1176.
-Could also continue trying to shorten window sizes/stride to make more data fit into memory and increase model complexity. 
-Could also try to train on new datasets like can-train-and-test: https://doi.org/10.1016/j.cose.2024.103777
+## Hardware & Deployment
+* The STM32H723ZG tensor arena likely only used AXI SRAM (320KB), leaving SRAM1/2, SRAM3, and DTCM (~256KB total) unused. A custom linker script assembling a larger contiguous arena across banks could allow more samples in memory.
+* Could use stronger or more flexible chips that support FP16 quantization, such as the TI Sitara AM62A or NXP i.MX RT1062/i.MX RT1176.
+* Inference latency was never formally benchmarked. Using the DWT cycle counter or a hardware timer (TIM2/TIM5) to measure mean and worst-case latency on the H7 would strengthen any deployment claims.
+
+## Model & Training
+* Fix callback monitoring — `val_auc` was never registered in `model.compile(metrics=[...])`, so `ModelCheckpoint`, `EarlyStopping`, and `ReduceLROnPlateau` all silently failed. The saved checkpoint is not guaranteed to be the best model.
+* Fix AUC reporting — `print_report_and_score` calls `.ravel()` on a 2-output softmax, producing shape `(2N,)`. The reported 0.94 AUC is unreliable. Should use `model.predict(X_test)[:, 1]` and integer true labels.
+* `class_weight` was silently ignored because Keras requires integer `y`, not one-hot encoded `y`. Now fixed in the updated data pipeline.
+* Quantization-aware training (QAT) was never attempted — only post-training quantization (PTQ), which is known to degrade small models with few parameters. QAT simulates quantization during training and would likely recover lost accuracy.
+* Could continue trying to shorten window sizes and stride to fit more data into memory and increase model complexity.
+* A small ablation over filter count and kernel size would strengthen evaluation — only one architecture was tested.
+* Report per-class precision, recall, and F1 on the attack class specifically. Accuracy and AUC alone are insufficient for imbalanced binary classification.
+
+## Data & Generalization
+* Window-level class imbalance was never verified — file-level splitting appeared balanced but injection windows are a small fraction of total capture duration, likely producing a 90:10 or worse window-level ratio.
+* The `Time` column was inadvertently included as a feature in `create_windows` via `.drop(columns=["Label"])`. Time is a leaky and non-generalizing feature. Fixed in the updated cleaning script.
+* The ROAD dataset is dyno-only. Generalization to on-road traffic is unvalidated. Could also train on newer datasets like can-train-and-test (https://doi.org/10.1016/j.cose.2024.103777) or CAN-MIRGU, which include moving-vehicle captures.
+* Model was trained and tested on the same vehicle. Cross-vehicle generalization is an open and publishable question.
+
 
 SOURCES:
 
