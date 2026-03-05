@@ -8,10 +8,9 @@ from sklearn.preprocessing import StandardScaler
 import numpy as np
 from keras.callbacks import EarlyStopping, ReduceLROnPlateau, ModelCheckpoint
 from sklearn.metrics import classification_report, confusion_matrix, roc_auc_score
-from metrics_tracking import SoftmaxAUC, F1Score, plot_metrics
+from metrics_tracking import F1Score, plot_metrics
 from sklearn.preprocessing import OneHotEncoder
 from sklearn.metrics import roc_curve
-
 
 #import the datasets to test
 def load_data(data_file_name):
@@ -66,7 +65,7 @@ def train_model(model, X_train, y_train):
     ]
     model.compile(optimizer=keras.optimizers.Adam(1e-3), 
                 loss = 'categorical_crossentropy', 
-                metrics = ['accuracy', 
+                metrics = ['accuracy', 'auc'
                     # SoftmaxAUC(name='auc')
                             #  keras.metrics.AUC(name='auc')# 
                 #   keras.metrics.Precision(name='precision'),

@@ -224,6 +224,26 @@ def build_dataset_from_split(all_data, train_files, test_files):
 
     return X_train, y_train, X_test, y_test
 
+def standardize(X_train, y_train, X_test, y_test):
+    # Clip outliers 
+    X_train = np.clip(X_train, -1e6, 1e6)
+    X_test  = np.clip(X_test,  -1e6, 1e6)
+    # Standardize features
+    scaler = StandardScaler()
+    X_train_flat = X_train.reshape(-1, X_train.shape[-1])
+    X_test_flat  = X_test.reshape(-1,  X_test.shape[-1])
+    X_train_scaled = scaler.fit_transform(X_train_flat)
+    X_test_scaled  = scaler.transform(X_test_flat)
+    X_train = X_train_scaled.reshape(X_train.shape)
+    X_test  = X_test_scaled.reshape(X_test.shape)
+    
+    print("Scaler mean: ", scaler.mean_, "Scaler scale: ", scaler.scale_) 
+    debug_idx = 0
+    print("Python X_test_scaled first 10 values:")
+    print(X_test_scaled[debug_idx].flatten()[:10])
+    return X_train, y_train, X_test, y_test, scaler.mean_, scaler.scale_
+
+
 # %%
 def main():
     window_frequency = 200
@@ -247,6 +267,8 @@ def main():
         X_test=X_test,
         y_test=y_test
     )  
+    X_train, y_train, X_test, y_test, scaler_mean, scaler_std = standardize(X_train, y_train, X_test, y_test)
+    return X_train, y_train, X_test, y_test, scaler_mean, scaler_std
 
 # %%
 if __name__ == '__main__':
